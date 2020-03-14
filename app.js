@@ -42,12 +42,14 @@ mongoose.connect("mongodb://localhost:27017/userDB", {
   useUnifiedTopology: true
 });
 
+//Fix deprecation warning
 mongoose.set("useCreateIndex", true);
 
 const userSchema = new mongoose.Schema({
   email: String,
   password: String,
-  googleId: String
+  googleId: String,
+  secret: String
 });
 
 
@@ -111,12 +113,47 @@ app.get("/register", function(req, res) {
 });
 
 app.get("/secrets", function(req, res) {
+  //Looks for all secrets ne: not equal to null: nothing
+  User.find({"secret": {$ne: null}}, function(err, foundUsers){
+    if (err){
+      console.log(err);
+    } else {
+      if (foundUsers) {
+        //Passes usersWithSecrets to secrets.ejs
+        res.render("secrets", {usersWithSecrets: foundUsers});
+      }
+    }
+  });
+});
+
+app.get("/submit", function(req, res){
   if (req.isAuthenticated()){
-    res.render("secrets");
+    res.render("submit");
   } else {
     res.redirect("/login");
   }
 });
+
+app.post("/submit", function(req, res){
+  const submittedSecret = req.body.secret;
+  //Passport saves users details in req
+  // console.log(req.user);
+  console.log(req.user.id);
+
+  User.findById(req.user.id, function(err, foundUser){
+    if (err){
+      console.log(err);
+    } else {
+      if (foundUser){
+        foundUser.secret = submittedSecret;
+        foundUser.save(function(){
+          res.redirect("/secrets");
+        });
+      }
+    }
+  });
+});
+
 
 app.get("/logout", function(req, res){
   req.logout();
